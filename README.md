@@ -16,7 +16,7 @@ fn main() {
         println!("Column {i}: {} {}", rst.column_name(i), rst.column_type(i));
     }
 
-    while let Some(row) = (&mut rst).next() {
+    while let Some(row) = rst.fetch_row() {
         dbg!(row);
     }
 }
