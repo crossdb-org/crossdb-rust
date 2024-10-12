@@ -18,8 +18,10 @@ pub use error::{Error, Result};
 pub use value::Value;
 
 use crossdb_sys::*;
+use params::{IntoParams, Value as ParamValue};
 use std::ffi::{CStr, CString};
 use std::fmt::Display;
+mod params;
 
 #[derive(Debug)]
 pub struct Connection {
@@ -54,26 +56,70 @@ impl Connection {
                 let msg = CStr::from_ptr(xdb_errmsg(ptr)).to_str()?.to_string();
                 return Err(Error::Query(res.errcode, msg));
             }
-            Ok(ExecResult {
-                ptr,
-                col_meta: res.col_meta,
-                column_count: res.col_count as usize,
-                row_count: res.row_count as usize,
-                column_types: ColumnType::all(&res),
-                row_index: 0,
-            })
+            let types = ColumnType::all(&res);
+            Ok(ExecResult { res, ptr, types })
+        }
+    }
+
+    pub fn begin(&self) -> bool {
+        unsafe { xdb_begin(self.ptr) == 0 }
+    }
+
+    pub fn commit(&self) -> bool {
+        unsafe { xdb_commit(self.ptr) == 0 }
+    }
+
+    pub fn rollback(&self) -> bool {
+        unsafe { xdb_rollback(self.ptr) == 0 }
+    }
+
+    // TODO: LRU cache
+    pub fn prepare<S: AsRef<str>>(&mut self, sql: S) -> Result<Stmt> {
+        unsafe {
+            let sql = CString::new(sql.as_ref())?;
+            let ptr = xdb_stmt_prepare(self.ptr, sql.as_ptr());
+            Ok(Stmt { ptr })
+        }
+    }
+}
+
+pub struct Stmt {
+    ptr: *mut xdb_stmt_t,
+}
+
+impl Drop for Stmt {
+    fn drop(&mut self) {
+        unsafe {
+            xdb_stmt_close(self.ptr);
+        }
+    }
+}
+
+impl Stmt {
+    pub fn exec(&self, params: impl IntoParams) -> Result<ExecResult> {
+        unsafe {
+            let ret = xdb_clear_bindings(self.ptr);
+            if ret != 0 {
+                return Err(Error::ClearBindings);
+            }
+            params.into_params()?.bind(self.ptr)?;
+            let ptr = xdb_stmt_exec(self.ptr);
+            let res = *ptr;
+            if res.errcode as u32 != xdb_errno_e_XDB_OK {
+                let msg = CStr::from_ptr(xdb_errmsg(ptr)).to_str()?.to_string();
+                return Err(Error::Query(res.errcode, msg));
+            }
+            let types = ColumnType::all(&res);
+            Ok(ExecResult { res, ptr, types })
         }
     }
 }
 
 #[derive(Debug)]
 pub struct ExecResult {
+    res: xdb_res_t,
     ptr: *mut xdb_res_t,
-    col_meta: u64,
-    column_count: usize,
-    row_count: usize,
-    column_types: Vec<ColumnType>,
-    row_index: usize,
+    types: Vec<ColumnType>,
 }
 
 impl Drop for ExecResult {
@@ -86,41 +132,41 @@ impl Drop for ExecResult {
 
 impl ExecResult {
     pub fn column_count(&self) -> usize {
-        self.column_count
+        self.res.col_count as usize
     }
 
     pub fn row_count(&self) -> usize {
-        self.row_count
+        self.res.row_count as usize
     }
 
-    pub fn column_name<'a>(&'a self, i: usize) -> &'a str {
+    pub fn affected_rows(&self) -> u64 {
+        self.res.affected_rows
+    }
+
+    pub fn column_name(&self, i: usize) -> &str {
         unsafe {
-            let name = xdb_column_name(self.col_meta, i as u16);
+            let name = xdb_column_name(self.res.col_meta, i as u16);
             CStr::from_ptr(name).to_str().unwrap()
         }
     }
 
     pub fn column_type(&self, i: usize) -> ColumnType {
-        self.column_types[i]
+        self.types[i]
     }
-}
 
-impl<'a> Iterator for &'a mut ExecResult {
-    type Item = Vec<Value<'a>>;
-
-    fn next(&mut self) -> Option<Self::Item> {
-        if self.row_count <= self.row_index {
-            return None;
-        }
-        let mut values = Vec::with_capacity(self.column_count);
+    pub fn fetch_row(&mut self) -> Option<Vec<Value<'_>>> {
         unsafe {
-            let y = xdb_fetch_row(self.ptr);
-            for x in 0..self.column_count {
-                let value = Value::from_result(self.col_meta, y, x as u16, self.column_type(x));
+            let row = xdb_fetch_row(self.ptr);
+            if row.is_null() {
+                return None;
+            }
+            let mut values = Vec::with_capacity(self.column_count());
+            for col in 0..self.column_count() {
+                let value =
+                    Value::from_result(self.res.col_meta, row, col as u16, self.column_type(col));
                 values.push(value);
             }
+            Some(values)
         }
-        self.row_index += 1;
-        Some(values)
     }
 }
