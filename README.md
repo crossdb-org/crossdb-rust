@@ -23,6 +23,7 @@ fn main() {
 ```
 
 ## TODO
+* NULL value
 * Add more apis
 * Windows support
 * Dynamic link crossdb

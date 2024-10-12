@@ -18,8 +18,10 @@ pub use error::{Error, Result};
 pub use value::Value;
 
 use crossdb_sys::*;
+use params::{IntoParams, Value as ParamValue};
 use std::ffi::{CStr, CString};
 use std::fmt::Display;
+mod params;
 
 #[derive(Debug)]
 pub struct Connection {
@@ -60,23 +62,55 @@ impl Connection {
     }
 
     pub fn begin(&self) -> bool {
-        unsafe {
-            let status = xdb_begin(self.ptr);
-            status as u32 == xdb_errno_e_XDB_OK
-        }
+        unsafe { xdb_begin(self.ptr) == 0 }
     }
 
     pub fn commit(&self) -> bool {
-        unsafe {
-            let status = xdb_commit(self.ptr);
-            status as u32 == xdb_errno_e_XDB_OK
-        }
+        unsafe { xdb_commit(self.ptr) == 0 }
     }
 
     pub fn rollback(&self) -> bool {
+        unsafe { xdb_rollback(self.ptr) == 0 }
+    }
+
+    // TODO: LRU cache
+    pub fn prepare<S: AsRef<str>>(&mut self, sql: S) -> Result<Stmt> {
         unsafe {
-            let status = xdb_rollback(self.ptr);
-            status as u32 == xdb_errno_e_XDB_OK
+            let sql = CString::new(sql.as_ref())?;
+            let ptr = xdb_stmt_prepare(self.ptr, sql.as_ptr());
+            Ok(Stmt { ptr })
+        }
+    }
+}
+
+pub struct Stmt {
+    ptr: *mut xdb_stmt_t,
+}
+
+impl Drop for Stmt {
+    fn drop(&mut self) {
+        unsafe {
+            xdb_stmt_close(self.ptr);
+        }
+    }
+}
+
+impl Stmt {
+    pub fn exec(&self, params: impl IntoParams) -> Result<ExecResult> {
+        unsafe {
+            let ret = xdb_clear_bindings(self.ptr);
+            if ret != 0 {
+                return Err(Error::ClearBindings);
+            }
+            params.into_params()?.bind(self.ptr)?;
+            let ptr = xdb_stmt_exec(self.ptr);
+            let res = *ptr;
+            if res.errcode as u32 != xdb_errno_e_XDB_OK {
+                let msg = CStr::from_ptr(xdb_errmsg(ptr)).to_str()?.to_string();
+                return Err(Error::Query(res.errcode, msg));
+            }
+            let types = ColumnType::all(&res);
+            Ok(ExecResult { res, ptr, types })
         }
     }
 }
@@ -109,7 +143,7 @@ impl ExecResult {
         self.res.affected_rows
     }
 
-    pub fn column_name<'a>(&'a self, i: usize) -> &'a str {
+    pub fn column_name(&self, i: usize) -> &str {
         unsafe {
             let name = xdb_column_name(self.res.col_meta, i as u16);
             CStr::from_ptr(name).to_str().unwrap()
