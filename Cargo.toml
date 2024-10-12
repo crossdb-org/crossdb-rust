@@ -1,0 +1,16 @@
+[package]
+name = "crossdb"
+version = "0.0.1"
+edition = "2021"
+license = "MIT"
+description = "CrossDB Rust Driver"
+readme = "README.md"
+homepage = "hhttps://github.com/crossdb-org/crossdb-rust"
+repository = "https://github.com/crossdb-org/crossdb-rust.git"
+
+[dependencies]
+thiserror = "1.0"
+
+[build-dependencies]
+bindgen = "0.70"
+cc = "1.1"
