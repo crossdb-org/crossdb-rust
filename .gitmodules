@@ -1,0 +1,3 @@
+[submodule "crossdb"]
+	path = crossdb
+	url = https://github.com/crossdb-org/crossdb
