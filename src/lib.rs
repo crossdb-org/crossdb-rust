@@ -58,6 +58,27 @@ impl Connection {
             Ok(ExecResult { res, ptr, types })
         }
     }
+
+    pub fn begin(&self) -> bool {
+        unsafe {
+            let status = xdb_begin(self.ptr);
+            status as u32 == xdb_errno_e_XDB_OK
+        }
+    }
+
+    pub fn commit(&self) -> bool {
+        unsafe {
+            let status = xdb_commit(self.ptr);
+            status as u32 == xdb_errno_e_XDB_OK
+        }
+    }
+
+    pub fn rollback(&self) -> bool {
+        unsafe {
+            let status = xdb_rollback(self.ptr);
+            status as u32 == xdb_errno_e_XDB_OK
+        }
+    }
 }
 
 #[derive(Debug)]
