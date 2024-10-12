@@ -21,3 +21,9 @@ fn main() {
     }
 }
 ```
+
+## TODO
+* Add more apis
+* Windows support
+* Dynamic link crossdb
+* use serde to serialize/deserialize
