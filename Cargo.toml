@@ -9,6 +9,7 @@ homepage = "hhttps://github.com/crossdb-org/crossdb-rust"
 repository = "https://github.com/crossdb-org/crossdb-rust.git"
 
 [dependencies]
+serde = { version = "1.0.210", features = ["derive"] }
 thiserror = "1.0"
 
 [build-dependencies]

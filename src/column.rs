@@ -1,8 +1,10 @@
 use crate::*;
+use std::rc::Rc;
+use std::slice::Iter;
 
 // https://crossdb.org/client/api-c/#xdb_type_t
 #[derive(Debug, Clone, Copy)]
-pub enum ColumnType {
+pub enum DataType {
     Null,
     TinyInt,
     SmallInt,
@@ -22,65 +24,120 @@ pub enum ColumnType {
     Max,
 }
 
-impl From<u32> for ColumnType {
+impl Display for DataType {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            DataType::Null => write!(f, "NULL"),
+            DataType::TinyInt => write!(f, "TINYINT"),
+            DataType::SmallInt => write!(f, "SMALLINT"),
+            DataType::Int => write!(f, "INT"),
+            DataType::BigInt => write!(f, "BIGINT"),
+            DataType::UTinyInt => write!(f, "UTINYINT"),
+            DataType::USmallInt => write!(f, "USMALLINT"),
+            DataType::UInt => write!(f, "UINT"),
+            DataType::UBigInt => write!(f, "UBIGINT"),
+            DataType::Float => write!(f, "FLOAT"),
+            DataType::Double => write!(f, "DOUBLE"),
+            DataType::Timestamp => write!(f, "TIMESTAMP"),
+            DataType::Char => write!(f, "CHAR"),
+            DataType::Binary => write!(f, "BINARY"),
+            DataType::VChar => write!(f, "VCHAR"),
+            DataType::VBinary => write!(f, "VBINARY"),
+            DataType::Max => write!(f, "MAX"),
+        }
+    }
+}
+
+impl DataType {
     #[allow(non_upper_case_globals)]
-    fn from(value: u32) -> Self {
-        match value {
-            xdb_type_t_XDB_TYPE_NULL => ColumnType::Null,
-            xdb_type_t_XDB_TYPE_TINYINT => ColumnType::TinyInt,
-            xdb_type_t_XDB_TYPE_SMALLINT => ColumnType::SmallInt,
-            xdb_type_t_XDB_TYPE_INT => ColumnType::Int,
-            xdb_type_t_XDB_TYPE_BIGINT => ColumnType::BigInt,
-            xdb_type_t_XDB_TYPE_UTINYINT => ColumnType::UTinyInt,
-            xdb_type_t_XDB_TYPE_USMALLINT => ColumnType::USmallInt,
-            xdb_type_t_XDB_TYPE_UINT => ColumnType::UInt,
-            xdb_type_t_XDB_TYPE_UBIGINT => ColumnType::UBigInt,
-            xdb_type_t_XDB_TYPE_FLOAT => ColumnType::Float,
-            xdb_type_t_XDB_TYPE_DOUBLE => ColumnType::Double,
-            xdb_type_t_XDB_TYPE_TIMESTAMP => ColumnType::Timestamp,
-            xdb_type_t_XDB_TYPE_CHAR => ColumnType::Char,
-            xdb_type_t_XDB_TYPE_BINARY => ColumnType::Binary,
-            xdb_type_t_XDB_TYPE_VCHAR => ColumnType::VChar,
-            xdb_type_t_XDB_TYPE_VBINARY => ColumnType::VBinary,
-            xdb_type_t_XDB_TYPE_MAX => ColumnType::Max,
+    unsafe fn from_meta(meta: u64, col: u16) -> Self {
+        let t = xdb_column_type(meta, col);
+        match t {
+            xdb_type_t_XDB_TYPE_NULL => Self::Null,
+            xdb_type_t_XDB_TYPE_TINYINT => Self::TinyInt,
+            xdb_type_t_XDB_TYPE_SMALLINT => Self::SmallInt,
+            xdb_type_t_XDB_TYPE_INT => Self::Int,
+            xdb_type_t_XDB_TYPE_BIGINT => Self::BigInt,
+            xdb_type_t_XDB_TYPE_UTINYINT => Self::UTinyInt,
+            xdb_type_t_XDB_TYPE_USMALLINT => Self::USmallInt,
+            xdb_type_t_XDB_TYPE_UINT => Self::UInt,
+            xdb_type_t_XDB_TYPE_UBIGINT => Self::UBigInt,
+            xdb_type_t_XDB_TYPE_FLOAT => Self::Float,
+            xdb_type_t_XDB_TYPE_DOUBLE => Self::Double,
+            xdb_type_t_XDB_TYPE_TIMESTAMP => Self::Timestamp,
+            xdb_type_t_XDB_TYPE_CHAR => Self::Char,
+            xdb_type_t_XDB_TYPE_BINARY => Self::Binary,
+            xdb_type_t_XDB_TYPE_VCHAR => Self::VChar,
+            xdb_type_t_XDB_TYPE_VBINARY => Self::VBinary,
+            xdb_type_t_XDB_TYPE_MAX => Self::Max,
             _ => unreachable!(),
         }
     }
 }
 
-impl Display for ColumnType {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        match self {
-            ColumnType::Null => write!(f, "NULL"),
-            ColumnType::TinyInt => write!(f, "TINYINT"),
-            ColumnType::SmallInt => write!(f, "SMALLINT"),
-            ColumnType::Int => write!(f, "INT"),
-            ColumnType::BigInt => write!(f, "BIGINT"),
-            ColumnType::UTinyInt => write!(f, "UTINYINT"),
-            ColumnType::USmallInt => write!(f, "USMALLINT"),
-            ColumnType::UInt => write!(f, "UINT"),
-            ColumnType::UBigInt => write!(f, "UBIGINT"),
-            ColumnType::Float => write!(f, "FLOAT"),
-            ColumnType::Double => write!(f, "DOUBLE"),
-            ColumnType::Timestamp => write!(f, "TIMESTAMP"),
-            ColumnType::Char => write!(f, "CHAR"),
-            ColumnType::Binary => write!(f, "BINARY"),
-            ColumnType::VChar => write!(f, "VCHAR"),
-            ColumnType::VBinary => write!(f, "VBINARY"),
-            ColumnType::Max => write!(f, "MAX"),
+#[derive(Debug, Clone)]
+pub struct Columns {
+    inner: Rc<Vec<(String, DataType)>>,
+}
+
+impl Columns {
+    pub(crate) unsafe fn from_res(ptr: *mut xdb_res_t) -> Self {
+        let res = *ptr;
+        let mut columns = Vec::with_capacity(res.col_count as usize);
+        for i in 0..res.col_count {
+            unsafe {
+                let name = CStr::from_ptr(xdb_column_name(res.col_meta, i))
+                    .to_str()
+                    .unwrap()
+                    .to_string();
+                let datatype = DataType::from_meta(res.col_meta, i);
+                columns.push((name, datatype));
+            }
         }
+        Self {
+            inner: Rc::new(columns),
+        }
+    }
+
+    pub fn len(&self) -> usize {
+        self.inner.len()
+    }
+
+    pub fn name(&self, i: usize) -> &str {
+        self.inner[i].0.as_str()
+    }
+
+    pub fn datatype(&self, i: usize) -> DataType {
+        self.inner[i].1
+    }
+
+    pub fn iter(&self) -> ColumnsIter {
+        ColumnsIter {
+            inner: self.inner.iter(),
+        }
+    }
+
+    pub fn into_inner(self) -> Option<Vec<(String, DataType)>> {
+        Rc::into_inner(self.inner)
     }
 }
 
-impl ColumnType {
-    pub(crate) fn all(res: &xdb_res_t) -> Vec<Self> {
-        let mut vec = Vec::with_capacity(res.col_count as usize);
-        for i in 0..vec.capacity() {
-            unsafe {
-                let t = xdb_column_type(res.col_meta, i as u16);
-                vec.push(Self::from(t));
-            }
-        }
-        vec
+pub struct ColumnsIter<'a> {
+    inner: Iter<'a, (String, DataType)>,
+}
+
+impl<'a> Iterator for ColumnsIter<'a> {
+    type Item = &'a (String, DataType);
+    fn next(&mut self) -> Option<Self::Item> {
+        self.inner.next()
+    }
+}
+
+impl<'a> IntoIterator for &'a Columns {
+    type Item = &'a (String, DataType);
+    type IntoIter = ColumnsIter<'a>;
+
+    fn into_iter(self) -> Self::IntoIter {
+        self.iter()
     }
 }

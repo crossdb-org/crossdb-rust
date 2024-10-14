@@ -10,11 +10,14 @@ mod crossdb_sys {
 }
 
 mod column;
+mod de;
 mod error;
+mod row;
 mod value;
 
-pub use column::ColumnType;
+pub use column::{Columns, DataType};
 pub use error::{Error, Result};
+pub use row::Row;
 pub use value::Value;
 
 use crossdb_sys::*;
@@ -56,8 +59,11 @@ impl Connection {
                 let msg = CStr::from_ptr(xdb_errmsg(ptr)).to_str()?.to_string();
                 return Err(Error::Query(res.errcode, msg));
             }
-            let types = ColumnType::all(&res);
-            Ok(ExecResult { res, ptr, types })
+            Ok(ExecResult {
+                res,
+                ptr,
+                columns: Columns::from_res(ptr),
+            })
         }
     }
 
@@ -109,8 +115,11 @@ impl Stmt {
                 let msg = CStr::from_ptr(xdb_errmsg(ptr)).to_str()?.to_string();
                 return Err(Error::Query(res.errcode, msg));
             }
-            let types = ColumnType::all(&res);
-            Ok(ExecResult { res, ptr, types })
+            Ok(ExecResult {
+                res,
+                ptr,
+                columns: Columns::from_res(ptr),
+            })
         }
     }
 }
@@ -119,7 +128,7 @@ impl Stmt {
 pub struct ExecResult {
     res: xdb_res_t,
     ptr: *mut xdb_res_t,
-    types: Vec<ColumnType>,
+    columns: Columns,
 }
 
 impl Drop for ExecResult {
@@ -143,18 +152,17 @@ impl ExecResult {
         self.res.affected_rows
     }
 
-    pub fn column_name(&self, i: usize) -> &str {
-        unsafe {
-            let name = xdb_column_name(self.res.col_meta, i as u16);
-            CStr::from_ptr(name).to_str().unwrap()
-        }
+    pub fn columns(&self) -> &Columns {
+        &self.columns
     }
 
-    pub fn column_type(&self, i: usize) -> ColumnType {
-        self.types[i]
+    pub fn fetch_row(&mut self) -> Option<Row<'_>> {
+        let columns = self.columns.clone();
+        let values = self.inner_fetch_row_values()?;
+        Some(Row { columns, values })
     }
 
-    pub fn fetch_row(&mut self) -> Option<Vec<Value<'_>>> {
+    fn inner_fetch_row_values(&mut self) -> Option<Vec<Value<'_>>> {
         unsafe {
             let row = xdb_fetch_row(self.ptr);
             if row.is_null() {
@@ -162,8 +170,12 @@ impl ExecResult {
             }
             let mut values = Vec::with_capacity(self.column_count());
             for col in 0..self.column_count() {
-                let value =
-                    Value::from_result(self.res.col_meta, row, col as u16, self.column_type(col));
+                let value = Value::from_result(
+                    self.res.col_meta,
+                    row,
+                    col as u16,
+                    self.columns.datatype(col),
+                );
                 values.push(value);
             }
             Some(values)

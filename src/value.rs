@@ -19,16 +19,16 @@ impl<'a> Value<'a> {
         meta: u64,
         row: *mut xdb_row_t,
         col: u16,
-        t: ColumnType,
+        t: DataType,
     ) -> Value<'a> {
         match t {
-            ColumnType::TinyInt => Value::I8(xdb_column_int(meta, row, col) as _),
-            ColumnType::SmallInt => Value::I16(xdb_column_int(meta, row, col) as _),
-            ColumnType::Int => Value::I32(xdb_column_int(meta, row, col) as _),
-            ColumnType::BigInt => Value::I64(xdb_column_int64(meta, row, col)),
-            ColumnType::Float => Value::F32(xdb_column_float(meta, row, col)),
-            ColumnType::Double => Value::F64(xdb_column_double(meta, row, col)),
-            ColumnType::Char => {
+            DataType::TinyInt => Value::I8(xdb_column_int(meta, row, col) as _),
+            DataType::SmallInt => Value::I16(xdb_column_int(meta, row, col) as _),
+            DataType::Int => Value::I32(xdb_column_int(meta, row, col) as _),
+            DataType::BigInt => Value::I64(xdb_column_int64(meta, row, col)),
+            DataType::Float => Value::F32(xdb_column_float(meta, row, col)),
+            DataType::Double => Value::F64(xdb_column_double(meta, row, col)),
+            DataType::Char => {
                 let s = CStr::from_ptr(xdb_column_str(meta, row, col));
                 Value::Char(s.to_str().unwrap())
             }
