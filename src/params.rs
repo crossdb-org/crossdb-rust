@@ -46,25 +46,23 @@ impl IntoValue for Value {
 }
 
 pub enum Params {
-    None,
+    Empty,
     Positional(Vec<Value>),
 }
 
 impl Params {
-    pub(crate) unsafe fn bind(self, ptr: *mut xdb_stmt_t) -> Result<()> {
-        if let Params::Positional(params) = self {
-            for (i, p) in params.into_iter().enumerate() {
-                let i = i as u16 + 1;
-                let ret = match p {
-                    ParamValue::Int(v) => xdb_bind_int(ptr, i, v),
-                    ParamValue::Int64(v) => xdb_bind_int64(ptr, i, v),
-                    ParamValue::Float(v) => xdb_bind_float(ptr, i, v),
-                    ParamValue::Double(v) => xdb_bind_double(ptr, i, v),
-                    ParamValue::String(v) => xdb_bind_str(ptr, i, CString::new(v)?.as_ptr()),
-                };
-                if ret != 0 {
-                    return Err(Error::BindParams);
-                }
+    pub(crate) unsafe fn bind(ptr: *mut xdb_stmt_t, params: Vec<Value>) -> Result<()> {
+        for (i, p) in params.into_iter().enumerate() {
+            let i = i as u16 + 1;
+            let ret = match p {
+                ParamValue::Int(v) => xdb_bind_int(ptr, i, v),
+                ParamValue::Int64(v) => xdb_bind_int64(ptr, i, v),
+                ParamValue::Float(v) => xdb_bind_float(ptr, i, v),
+                ParamValue::Double(v) => xdb_bind_double(ptr, i, v),
+                ParamValue::String(v) => xdb_bind_str(ptr, i, CString::new(v)?.as_ptr()),
+            };
+            if ret != 0 {
+                return Err(Error::BindParams);
             }
         }
         Ok(())
@@ -77,7 +75,7 @@ pub trait IntoParams {
 
 impl IntoParams for () {
     fn into_params(self) -> Result<Params> {
-        Ok(Params::None)
+        Ok(Params::Empty)
     }
 }
 

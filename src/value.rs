@@ -12,6 +12,21 @@ pub enum Value<'a> {
     Char(&'a str),
 }
 
+impl Display for Value<'_> {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Value::Null => write!(f, "NULL"),
+            Value::I8(v) => write!(f, "{}", v),
+            Value::I16(v) => write!(f, "{}", v),
+            Value::I32(v) => write!(f, "{}", v),
+            Value::I64(v) => write!(f, "{}", v),
+            Value::F32(v) => write!(f, "{}", v),
+            Value::F64(v) => write!(f, "{}", v),
+            Value::Char(v) => write!(f, "{}", v),
+        }
+    }
+}
+
 impl<'a> Value<'a> {
     // TODO: If you know the detailed format, you can access the pointer directly
     // https://crossdb.org/client/api-c/#xdb_column_int

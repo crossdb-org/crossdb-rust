@@ -16,7 +16,11 @@ impl Row<'_> {
         &self.values
     }
 
-    pub fn get<'i>(&self, index: impl IntoValueIndex<'i>) -> Option<&Value<'_>> {
+    pub fn get<'i>(&self, index: impl IntoValueIndex<'i>) -> &Value<'_> {
+        unsafe { self.try_get(index).unwrap_unchecked() }
+    }
+
+    pub fn try_get<'i>(&self, index: impl IntoValueIndex<'i>) -> Option<&Value<'_>> {
         match index.into_index() {
             ValueIndex::ColumnName(name) => {
                 let i = self.columns.iter().position(|(n, _)| n == name)?;
@@ -27,7 +31,7 @@ impl Row<'_> {
     }
 
     pub fn deserialize<T: DeserializeOwned>(&self) -> Result<T, DeError> {
-        let deserializer = RowDeserializer { row: &self };
+        let deserializer = RowDeserializer { row: self };
         T::deserialize(deserializer)
     }
 }
