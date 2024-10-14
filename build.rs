@@ -17,8 +17,13 @@ fn main() {
         .include("crossdb/include")
         .flag("-fPIC")
         .opt_level(2)
-        .static_flag(true)
-        .compile("crossdb");
+        .static_flag(true);
+
+    // TODO: Potentially unsafe
+    builder.cargo_warnings(false);
+
+    builder.compile("crossdb");
+
     println!("cargo:rustc-link-lib=static=crossdb");
     println!("cargo:rustc-link-lib=pthread");
 
