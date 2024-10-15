@@ -35,6 +35,5 @@ fn main() -> Result<()> {
 ## TODO
 
 - NULL value
-- Windows support
 - Dynamic link crossdb
 - use serde to serialize/deserialize

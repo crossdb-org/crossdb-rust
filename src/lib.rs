@@ -123,7 +123,7 @@ unsafe impl Sync for Query {}
 impl Query {
     pub(crate) unsafe fn from_res(ptr: *mut xdb_res_t) -> Result<Self> {
         let res = *ptr;
-        if res.errcode as u32 != xdb_errno_e_XDB_OK {
+        if res.errcode != xdb_errno_e_XDB_OK as u16 {
             let msg = CStr::from_ptr(xdb_errmsg(ptr)).to_str()?.to_string();
             return Err(Error::Query(res.errcode, msg));
         }
