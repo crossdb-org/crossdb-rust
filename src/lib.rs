@@ -32,6 +32,10 @@ use std::fmt::Display;
 use std::num::NonZeroUsize;
 mod params;
 
+pub fn version() -> &'static str {
+    unsafe { CStr::from_ptr(xdb_version()).to_str().unwrap() }
+}
+
 #[derive(Debug)]
 pub struct Connection {
     ptr: *mut xdb_conn_t,
