@@ -17,7 +17,7 @@ mod row;
 mod statement;
 mod value;
 
-pub use column::{Columns, DataType};
+pub use column::{Column, Columns, ColumnsIter, DataType};
 pub use error::{Error, Result};
 pub use params::{IntoParams, Params, Value as ParamValue};
 pub use row::{IntoValueIndex, Row, ValueIndex};
@@ -170,7 +170,7 @@ impl Query {
         self.fetch_row().map(|row| row.deserialize())
     }
 
-    pub fn fetch_rows_as<'a, T: DeserializeOwned>(mut self) -> Result<Vec<T>, DeError> {
+    pub fn fetch_rows_as<'a, T: DeserializeOwned>(&mut self) -> Result<Vec<T>, DeError> {
         let mut rows = Vec::with_capacity(self.row_count());
         while let Some(row) = self.fetch_row() {
             rows.push(row.deserialize()?);

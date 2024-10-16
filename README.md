@@ -6,27 +6,35 @@ crossdb = { git = "https://github.com/crossdb-org/crossdb-rust" }
 ```
 
 ```rs
-use crossdb::{Connection, Result};
+#[derive(Debug, serde::Deserialize)]
+struct User {
+    id: i32,
+    name: String,
+    age: Option<i8>,
+}
 
-fn main() -> Result<()> {
-    let mut conn = Connection::open_with_memory()?;
+fn main() -> crossdb::Result<()> {
+    let mut conn = crossdb::Connection::open_with_memory()?;
 
-    conn.execute("create table if not exists users(id int, name CHAR(255));")?;
-    let stmt = conn.prepare("insert into users (id, name) values (?, ?);")?;
+    conn.execute("CREATE TABLE IF NOT EXISTS users(id INT, name CHAR(255), age TINYINT);")?;
+    let stmt = conn.prepare("INSERT INTO users (id, name, age) values (?, ?, ?);")?;
 
-    stmt.execute((1, "Alex"))?;
-    stmt.execute((2, "Thorne"))?;
-    stmt.execute((3, "Ryder"))?;
+    stmt.execute((1, "Alex", 18))?;
+    stmt.execute((2, "Thorne", 22))?;
+    stmt.execute((3, "Ryder", 36))?;
 
-    let mut query = conn.query("select * from users;")?;
+    let mut query = conn.query("SELECT * FROM users;")?;
 
-    for (name, datatype) in query.columns() {
-        println!("Column : {} {}", name, datatype);
+    for col in query.columns() {
+        println!("Column: {col}");
     }
 
-    while let Some(row) = query.fetch_row() {
-        println!("User: {}, Name: {}", row.get("id"), row.get("name"));
+    while let Some(user) = query.fetch_row_as::<User>() {
+        dbg!(user);
     }
+
+    let affected_rows = conn.execute("DELETE FROM users;")?;
+    assert_eq!(affected_rows, 3);
 
     Ok(())
 }

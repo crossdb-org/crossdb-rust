@@ -77,7 +77,7 @@ impl DataType {
 
 #[derive(Debug, Clone)]
 pub struct Columns {
-    inner: Rc<Vec<(String, DataType)>>,
+    inner: Rc<Vec<Column>>,
 }
 
 impl Columns {
@@ -91,7 +91,7 @@ impl Columns {
                     .unwrap()
                     .to_string();
                 let datatype = DataType::from_meta(res.col_meta, i);
-                columns.push((name, datatype));
+                columns.push(Column::new(name, datatype));
             }
         }
         Self {
@@ -104,11 +104,11 @@ impl Columns {
     }
 
     pub fn name(&self, i: usize) -> &str {
-        self.inner[i].0.as_str()
+        self.inner[i].name()
     }
 
     pub fn datatype(&self, i: usize) -> DataType {
-        self.inner[i].1
+        self.inner[i].datatype()
     }
 
     pub fn iter(&self) -> ColumnsIter {
@@ -117,27 +117,53 @@ impl Columns {
         }
     }
 
-    pub fn into_inner(self) -> Option<Vec<(String, DataType)>> {
+    pub fn into_inner(self) -> Option<Vec<Column>> {
         Rc::into_inner(self.inner)
     }
 }
 
 pub struct ColumnsIter<'a> {
-    inner: Iter<'a, (String, DataType)>,
+    inner: Iter<'a, Column>,
 }
 
 impl<'a> Iterator for ColumnsIter<'a> {
-    type Item = &'a (String, DataType);
+    type Item = &'a Column;
     fn next(&mut self) -> Option<Self::Item> {
         self.inner.next()
     }
 }
 
 impl<'a> IntoIterator for &'a Columns {
-    type Item = &'a (String, DataType);
+    type Item = &'a Column;
     type IntoIter = ColumnsIter<'a>;
 
     fn into_iter(self) -> Self::IntoIter {
         self.iter()
+    }
+}
+
+#[derive(Debug, Clone)]
+pub struct Column {
+    name: String,
+    datatype: DataType,
+}
+
+impl Column {
+    pub fn new(name: String, datatype: DataType) -> Self {
+        Self { name, datatype }
+    }
+
+    pub fn name(&self) -> &str {
+        self.name.as_str()
+    }
+
+    pub fn datatype(&self) -> DataType {
+        self.datatype
+    }
+}
+
+impl Display for Column {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{} [{}]", self.name, self.datatype)
     }
 }
