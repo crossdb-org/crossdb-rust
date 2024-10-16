@@ -26,6 +26,7 @@ pub use value::Value;
 
 use crossdb_sys::*;
 use lru::LruCache;
+use serde::de::{value::Error as DeError, DeserializeOwned};
 use std::ffi::{CStr, CString};
 use std::fmt::Display;
 use std::num::NonZeroUsize;
@@ -154,6 +155,18 @@ impl Query {
         let columns = self.columns.clone();
         let values = self.inner_fetch_row_values()?;
         Some(Row { columns, values })
+    }
+
+    pub fn fetch_row_as<T: DeserializeOwned>(&mut self) -> Option<Result<T, DeError>> {
+        self.fetch_row().map(|row| row.deserialize())
+    }
+
+    pub fn fetch_rows_as<'a, T: DeserializeOwned>(mut self) -> Result<Vec<T>, DeError> {
+        let mut rows = Vec::with_capacity(self.row_count());
+        while let Some(row) = self.fetch_row() {
+            rows.push(row.deserialize()?);
+        }
+        Ok(rows)
     }
 
     fn inner_fetch_row_values(&mut self) -> Option<Vec<Value<'_>>> {

@@ -1,4 +1,4 @@
-# crossdb-rs
+# crossdb-rust
 
 ```toml
 [dependencies]
@@ -31,9 +31,3 @@ fn main() -> Result<()> {
     Ok(())
 }
 ```
-
-## TODO
-
-- NULL value
-- Dynamic link crossdb
-- use serde to serialize/deserialize
