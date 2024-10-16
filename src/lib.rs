@@ -102,6 +102,11 @@ impl Connection {
         Ok(stmt)
     }
 
+    pub fn resize_statement_cache(&mut self, capacity: usize) {
+        assert_ne!(capacity, 0);
+        self.cache.resize(NonZeroUsize::new(capacity).unwrap());
+    }
+
     pub fn clear_statement_cache(&mut self) {
         self.cache.clear();
     }
