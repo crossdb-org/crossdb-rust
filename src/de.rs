@@ -90,6 +90,8 @@ impl<'de> Deserializer<'de> for ValueDeserializer<'de> {
             Value::F32(v) => visitor.visit_f32(v),
             Value::F64(v) => visitor.visit_f64(v),
             Value::Char(v) => visitor.visit_str(v),
+            // TODO: Deserialize Binary to Vec<u8>
+            Value::Binary(_) => unimplemented!(),
         }
     }
 

@@ -68,6 +68,14 @@ impl Connection {
         Self::open(":memory:")
     }
 
+    pub fn current_database(&self) -> Result<&str> {
+        unsafe {
+            let ptr = xdb_curdb(self.ptr);
+            let db = CStr::from_ptr(ptr).to_str()?;
+            Ok(db)
+        }
+    }
+
     pub fn query<S: AsRef<str>>(&self, sql: S) -> Result<Query> {
         let sql = CString::new(sql.as_ref())?;
         unsafe {

@@ -10,6 +10,7 @@ pub enum Value<'a> {
     F32(f32),
     F64(f64),
     Char(&'a str),
+    Binary(&'a [u8]),
 }
 
 impl Display for Value<'_> {
@@ -23,6 +24,7 @@ impl Display for Value<'_> {
             Value::F32(v) => write!(f, "{}", v),
             Value::F64(v) => write!(f, "{}", v),
             Value::Char(v) => write!(f, "{}", v),
+            Value::Binary(v) => write!(f, "{:?}", v),
         }
     }
 }
@@ -43,9 +45,13 @@ impl<'a> Value<'a> {
             DataType::BigInt => Value::I64(xdb_column_int64(meta, row, col)),
             DataType::Float => Value::F32(xdb_column_float(meta, row, col)),
             DataType::Double => Value::F64(xdb_column_double(meta, row, col)),
-            DataType::Char => {
+            DataType::Char | DataType::VChar => {
                 let s = CStr::from_ptr(xdb_column_str(meta, row, col));
                 Value::Char(s.to_str().unwrap())
+            }
+            DataType::Binary | DataType::VBinary => {
+                // xdb_column_blob(meta, row, col, pLen);
+                todo!()
             }
             _ => unimplemented!(),
         }
