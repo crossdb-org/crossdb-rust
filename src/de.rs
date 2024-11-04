@@ -89,9 +89,12 @@ impl<'de> Deserializer<'de> for ValueDeserializer<'de> {
             Value::I64(v) => visitor.visit_i64(v),
             Value::F32(v) => visitor.visit_f32(v),
             Value::F64(v) => visitor.visit_f64(v),
-            Value::Char(v) => visitor.visit_str(v),
+            // TODO
+            Value::Timestamp(v) => visitor.visit_i64(v),
+            Value::String(v) => visitor.visit_str(v),
             // TODO: Deserialize Binary to Vec<u8>
             Value::Binary(_) => unimplemented!(),
+            Value::Bool(v) => visitor.visit_bool(v),
         }
     }
 
@@ -144,8 +147,8 @@ mod tests {
         de(&Value::I16(1), Some(1i16));
         de(&Value::I16(1), Some(1_u128));
 
-        de(&Value::Char("Hello"), String::from("Hello"));
-        de(&Value::Char("Hello"), Some(String::from("Hello")));
+        de(&Value::String("Hello"), String::from("Hello"));
+        de(&Value::String("Hello"), Some(String::from("Hello")));
     }
 
     #[test]

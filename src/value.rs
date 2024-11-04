@@ -9,8 +9,10 @@ pub enum Value<'a> {
     I64(i64),
     F32(f32),
     F64(f64),
-    Char(&'a str),
+    Timestamp(i64),
+    String(&'a str),
     Binary(&'a [u8]),
+    Bool(bool),
 }
 
 impl Display for Value<'_> {
@@ -23,8 +25,10 @@ impl Display for Value<'_> {
             Value::I64(v) => write!(f, "{}", v),
             Value::F32(v) => write!(f, "{}", v),
             Value::F64(v) => write!(f, "{}", v),
-            Value::Char(v) => write!(f, "{}", v),
+            Value::Timestamp(v) => write!(f, "{}", v),
+            Value::String(v) => write!(f, "{}", v),
             Value::Binary(v) => write!(f, "{:?}", v),
+            Value::Bool(v) => write!(f, "{}", v),
         }
     }
 }
@@ -45,14 +49,19 @@ impl<'a> Value<'a> {
             DataType::BigInt => Value::I64(xdb_column_int64(meta, row, col)),
             DataType::Float => Value::F32(xdb_column_float(meta, row, col)),
             DataType::Double => Value::F64(xdb_column_double(meta, row, col)),
+            DataType::Timestamp => Value::Timestamp(xdb_column_int64(meta, row, col)),
             DataType::Char | DataType::VChar => {
-                let s = CStr::from_ptr(xdb_column_str(meta, row, col));
-                Value::Char(s.to_str().unwrap())
+                let ptr = xdb_column_str(meta, row, col);
+                if ptr.is_null() {
+                    return Value::Null;
+                }
+                Value::String(CStr::from_ptr(ptr).to_str().unwrap())
             }
             DataType::Binary | DataType::VBinary => {
                 // xdb_column_blob(meta, row, col, pLen);
                 todo!()
             }
+            DataType::Bool => Value::Bool(xdb_column_int(meta, row, col) == 1),
             _ => unimplemented!(),
         }
     }

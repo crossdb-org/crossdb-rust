@@ -2,7 +2,7 @@ use crate::*;
 use std::rc::Rc;
 use std::slice::Iter;
 
-// https://crossdb.org/client/api-c/#xdb_type_t
+// https://github.com/crossdb-org/crossdb/blob/main/include/crossdb.h
 #[derive(Debug, Clone, Copy)]
 pub enum DataType {
     Null,
@@ -21,6 +21,7 @@ pub enum DataType {
     Binary,
     VChar,
     VBinary,
+    Bool,
     Max,
 }
 
@@ -43,6 +44,7 @@ impl Display for DataType {
             DataType::Binary => write!(f, "BINARY"),
             DataType::VChar => write!(f, "VCHAR"),
             DataType::VBinary => write!(f, "VBINARY"),
+            DataType::Bool => write!(f, "BOOL"),
             DataType::Max => write!(f, "MAX"),
         }
     }
@@ -69,6 +71,7 @@ impl DataType {
             xdb_type_t_XDB_TYPE_BINARY => Self::Binary,
             xdb_type_t_XDB_TYPE_VCHAR => Self::VChar,
             xdb_type_t_XDB_TYPE_VBINARY => Self::VBinary,
+            xdb_type_t_XDB_TYPE_BOOL => Self::Bool,
             xdb_type_t_XDB_TYPE_MAX => Self::Max,
             _ => unreachable!(),
         }
