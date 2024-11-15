@@ -12,6 +12,7 @@ repository = "https://github.com/crossdb-org/crossdb-rust.git"
 lru = "0.12"
 serde = "1.0"
 thiserror = "1.0"
+strum = { version = "0.26", features = ["derive"] }
 
 [build-dependencies]
 bindgen = "0.70"

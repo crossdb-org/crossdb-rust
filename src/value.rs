@@ -13,6 +13,8 @@ pub enum Value<'a> {
     String(&'a str),
     Binary(&'a [u8]),
     Bool(bool),
+    Inet([u8; 18]),
+    Mac([u8; 6]),
 }
 
 impl Display for Value<'_> {
@@ -29,6 +31,8 @@ impl Display for Value<'_> {
             Value::String(v) => write!(f, "{}", v),
             Value::Binary(v) => write!(f, "{:?}", v),
             Value::Bool(v) => write!(f, "{}", v),
+            Value::Inet(v) => write!(f, "{:?}", v),
+            Value::Mac(v) => write!(f, "{:?}", v),
         }
     }
 }
@@ -43,13 +47,18 @@ impl<'a> Value<'a> {
         t: DataType,
     ) -> Value<'a> {
         match t {
-            DataType::TinyInt => Value::I8(xdb_column_int(meta, row, col) as _),
-            DataType::SmallInt => Value::I16(xdb_column_int(meta, row, col) as _),
-            DataType::Int => Value::I32(xdb_column_int(meta, row, col) as _),
-            DataType::BigInt => Value::I64(xdb_column_int64(meta, row, col)),
-            DataType::Float => Value::F32(xdb_column_float(meta, row, col)),
-            DataType::Double => Value::F64(xdb_column_double(meta, row, col)),
-            DataType::Timestamp => Value::Timestamp(xdb_column_int64(meta, row, col)),
+            DataType::Null => Self::Null,
+            DataType::TinyInt => Self::I8(xdb_column_int(meta, row, col) as _),
+            DataType::UTinyInt => todo!(),
+            DataType::SmallInt => Self::I16(xdb_column_int(meta, row, col) as _),
+            DataType::USmallInt => todo!(),
+            DataType::Int => Self::I32(xdb_column_int(meta, row, col) as _),
+            DataType::UInt => todo!(),
+            DataType::BigInt => Self::I64(xdb_column_int64(meta, row, col)),
+            DataType::UBigInt => todo!(),
+            DataType::Float => Self::F32(xdb_column_float(meta, row, col)),
+            DataType::Double => Self::F64(xdb_column_double(meta, row, col)),
+            DataType::Timestamp => Self::Timestamp(xdb_column_int64(meta, row, col)),
             DataType::Char | DataType::VChar => {
                 let ptr = xdb_column_str(meta, row, col);
                 if ptr.is_null() {
@@ -61,8 +70,10 @@ impl<'a> Value<'a> {
                 // xdb_column_blob(meta, row, col, pLen);
                 todo!()
             }
-            DataType::Bool => Value::Bool(xdb_column_int(meta, row, col) == 1),
-            _ => unimplemented!(),
+            DataType::Bool => Self::Bool(xdb_column_int(meta, row, col) == 1),
+            DataType::Inet => todo!(),
+            DataType::Mac => todo!(),
+            DataType::Max => todo!(),
         }
     }
 }

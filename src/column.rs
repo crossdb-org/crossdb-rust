@@ -1,79 +1,60 @@
 use crate::*;
 use std::rc::Rc;
 use std::slice::Iter;
+use strum::{Display, FromRepr, IntoStaticStr};
 
 // https://github.com/crossdb-org/crossdb/blob/main/include/crossdb.h
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Display, IntoStaticStr, FromRepr)]
+#[repr(u32)]
 pub enum DataType {
-    Null,
-    TinyInt,
-    SmallInt,
-    Int,
-    BigInt,
-    UTinyInt,
-    USmallInt,
-    UInt,
-    UBigInt,
-    Float,
-    Double,
-    Timestamp,
-    Char,
-    Binary,
-    VChar,
-    VBinary,
-    Bool,
-    Max,
-}
-
-impl Display for DataType {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        match self {
-            DataType::Null => write!(f, "NULL"),
-            DataType::TinyInt => write!(f, "TINYINT"),
-            DataType::SmallInt => write!(f, "SMALLINT"),
-            DataType::Int => write!(f, "INT"),
-            DataType::BigInt => write!(f, "BIGINT"),
-            DataType::UTinyInt => write!(f, "UTINYINT"),
-            DataType::USmallInt => write!(f, "USMALLINT"),
-            DataType::UInt => write!(f, "UINT"),
-            DataType::UBigInt => write!(f, "UBIGINT"),
-            DataType::Float => write!(f, "FLOAT"),
-            DataType::Double => write!(f, "DOUBLE"),
-            DataType::Timestamp => write!(f, "TIMESTAMP"),
-            DataType::Char => write!(f, "CHAR"),
-            DataType::Binary => write!(f, "BINARY"),
-            DataType::VChar => write!(f, "VCHAR"),
-            DataType::VBinary => write!(f, "VBINARY"),
-            DataType::Bool => write!(f, "BOOL"),
-            DataType::Max => write!(f, "MAX"),
-        }
-    }
+    #[strum(serialize = "NULL")]
+    Null = xdb_type_t_XDB_TYPE_NULL,
+    #[strum(serialize = "TINYINT")]
+    TinyInt = xdb_type_t_XDB_TYPE_TINYINT,
+    #[strum(serialize = "SMALLINT")]
+    SmallInt = xdb_type_t_XDB_TYPE_SMALLINT,
+    #[strum(serialize = "INT")]
+    Int = xdb_type_t_XDB_TYPE_INT,
+    #[strum(serialize = "BIGINT")]
+    BigInt = xdb_type_t_XDB_TYPE_BIGINT,
+    #[strum(serialize = "UTINYINT")]
+    UTinyInt = xdb_type_t_XDB_TYPE_UTINYINT,
+    #[strum(serialize = "USMALLINT")]
+    USmallInt = xdb_type_t_XDB_TYPE_USMALLINT,
+    #[strum(serialize = "UINT")]
+    UInt = xdb_type_t_XDB_TYPE_UINT,
+    #[strum(serialize = "UBIGINT")]
+    UBigInt = xdb_type_t_XDB_TYPE_UBIGINT,
+    #[strum(serialize = "FLOAT")]
+    Float = xdb_type_t_XDB_TYPE_FLOAT,
+    #[strum(serialize = "DOUBLE")]
+    Double = xdb_type_t_XDB_TYPE_DOUBLE,
+    #[strum(serialize = "TIMESTAMP")]
+    Timestamp = xdb_type_t_XDB_TYPE_TIMESTAMP,
+    #[strum(serialize = "CHAR")]
+    Char = xdb_type_t_XDB_TYPE_CHAR,
+    #[strum(serialize = "BINARY")]
+    Binary = xdb_type_t_XDB_TYPE_BINARY,
+    #[strum(serialize = "VCHAR")]
+    VChar = xdb_type_t_XDB_TYPE_VCHAR,
+    #[strum(serialize = "VBINARY")]
+    VBinary = xdb_type_t_XDB_TYPE_VBINARY,
+    #[strum(serialize = "BOOL")]
+    Bool = xdb_type_t_XDB_TYPE_BOOL,
+    #[strum(serialize = "INET")]
+    Inet = xdb_type_t_XDB_TYPE_INET,
+    #[strum(serialize = "MAC")]
+    Mac = xdb_type_t_XDB_TYPE_MAC,
+    #[strum(serialize = "MAX")]
+    Max = xdb_type_t_XDB_TYPE_MAX,
 }
 
 impl DataType {
-    #[allow(non_upper_case_globals)]
     unsafe fn from_meta(meta: u64, col: u16) -> Self {
         let t = xdb_column_type(meta, col);
-        match t {
-            xdb_type_t_XDB_TYPE_NULL => Self::Null,
-            xdb_type_t_XDB_TYPE_TINYINT => Self::TinyInt,
-            xdb_type_t_XDB_TYPE_SMALLINT => Self::SmallInt,
-            xdb_type_t_XDB_TYPE_INT => Self::Int,
-            xdb_type_t_XDB_TYPE_BIGINT => Self::BigInt,
-            xdb_type_t_XDB_TYPE_UTINYINT => Self::UTinyInt,
-            xdb_type_t_XDB_TYPE_USMALLINT => Self::USmallInt,
-            xdb_type_t_XDB_TYPE_UINT => Self::UInt,
-            xdb_type_t_XDB_TYPE_UBIGINT => Self::UBigInt,
-            xdb_type_t_XDB_TYPE_FLOAT => Self::Float,
-            xdb_type_t_XDB_TYPE_DOUBLE => Self::Double,
-            xdb_type_t_XDB_TYPE_TIMESTAMP => Self::Timestamp,
-            xdb_type_t_XDB_TYPE_CHAR => Self::Char,
-            xdb_type_t_XDB_TYPE_BINARY => Self::Binary,
-            xdb_type_t_XDB_TYPE_VCHAR => Self::VChar,
-            xdb_type_t_XDB_TYPE_VBINARY => Self::VBinary,
-            xdb_type_t_XDB_TYPE_BOOL => Self::Bool,
-            xdb_type_t_XDB_TYPE_MAX => Self::Max,
-            _ => unreachable!(),
+        match Self::from_repr(t) {
+            Some(t) => t,
+            None => unreachable!(),
         }
     }
 }

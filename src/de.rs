@@ -93,8 +93,10 @@ impl<'de> Deserializer<'de> for ValueDeserializer<'de> {
             Value::Timestamp(v) => visitor.visit_i64(v),
             Value::String(v) => visitor.visit_str(v),
             // TODO: Deserialize Binary to Vec<u8>
-            Value::Binary(_) => unimplemented!(),
+            Value::Binary(_) => todo!(),
             Value::Bool(v) => visitor.visit_bool(v),
+            Value::Inet(_) => todo!(),
+            Value::Mac(_) => todo!(),
         }
     }
 
