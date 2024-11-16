@@ -13,6 +13,8 @@ lru = "0.12"
 serde = "1.0"
 thiserror = "1.0"
 strum = { version = "0.26", features = ["derive"] }
+cidr = "0.3.0"
+mac_address = "1.1.7"
 
 [build-dependencies]
 bindgen = "0.70"

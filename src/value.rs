@@ -1,4 +1,9 @@
 use crate::*;
+use cidr::{IpInet, Ipv4Inet, Ipv6Inet};
+use mac_address::MacAddress;
+use std::ffi::c_char;
+use std::net::{Ipv4Addr, Ipv6Addr};
+use std::ptr::read;
 
 #[derive(Debug, Clone, PartialEq)]
 pub enum Value<'a> {
@@ -13,8 +18,8 @@ pub enum Value<'a> {
     String(&'a str),
     Binary(&'a [u8]),
     Bool(bool),
-    Inet([u8; 18]),
-    Mac([u8; 6]),
+    Inet(IpInet),
+    Mac(MacAddress),
 }
 
 impl Display for Value<'_> {
@@ -38,41 +43,59 @@ impl Display for Value<'_> {
 }
 
 impl<'a> Value<'a> {
-    // TODO: If you know the detailed format, you can access the pointer directly
-    // https://crossdb.org/client/api-c/#xdb_column_int
-    pub(crate) unsafe fn from_result(
-        meta: u64,
-        row: *mut xdb_row_t,
-        col: u16,
-        t: DataType,
-    ) -> Value<'a> {
+    pub(crate) unsafe fn from_ptr(ptr: *const c_void, t: DataType) -> Self {
+        if ptr.is_null() {
+            return Self::Null;
+        }
         match t {
             DataType::Null => Self::Null,
-            DataType::TinyInt => Self::I8(xdb_column_int(meta, row, col) as _),
+            DataType::TinyInt => Self::I8(read(ptr as *const i8)),
             DataType::UTinyInt => todo!(),
-            DataType::SmallInt => Self::I16(xdb_column_int(meta, row, col) as _),
+            DataType::SmallInt => Self::I16(read(ptr as *const i16)),
             DataType::USmallInt => todo!(),
-            DataType::Int => Self::I32(xdb_column_int(meta, row, col) as _),
+            DataType::Int => Self::I32(read(ptr as *const i32)),
             DataType::UInt => todo!(),
-            DataType::BigInt => Self::I64(xdb_column_int64(meta, row, col)),
+            DataType::BigInt => Self::I64(read(ptr as *const i64)),
             DataType::UBigInt => todo!(),
-            DataType::Float => Self::F32(xdb_column_float(meta, row, col)),
-            DataType::Double => Self::F64(xdb_column_double(meta, row, col)),
-            DataType::Timestamp => Self::Timestamp(xdb_column_int64(meta, row, col)),
+            DataType::Float => Self::F32(read(ptr as *const f32)),
+            DataType::Double => Self::F64(read(ptr as *const f64)),
+            DataType::Timestamp => Self::Timestamp(read(ptr as *const i64)),
             DataType::Char | DataType::VChar => {
-                let ptr = xdb_column_str(meta, row, col);
-                if ptr.is_null() {
-                    return Value::Null;
-                }
-                Value::String(CStr::from_ptr(ptr).to_str().unwrap())
+                let str = CStr::from_ptr(ptr as *const c_char).to_str().unwrap();
+                Self::String(str)
             }
             DataType::Binary | DataType::VBinary => {
-                // xdb_column_blob(meta, row, col, pLen);
-                todo!()
+                let len = read((ptr as *const u8).offset(-2) as *const u16);
+                let data = from_raw_parts(ptr as *const u8, len as usize);
+                Self::Binary(data)
             }
-            DataType::Bool => Self::Bool(xdb_column_int(meta, row, col) == 1),
-            DataType::Inet => todo!(),
-            DataType::Mac => todo!(),
+            DataType::Bool => Self::Bool(*(ptr as *const i8) == 1),
+            DataType::Inet => {
+                let bytes = from_raw_parts(ptr as *const u8, 18);
+                let mask = bytes[0];
+                let family = bytes[1];
+                match family {
+                    4 => {
+                        let mut buf = [0; 4];
+                        buf.copy_from_slice(&bytes[2..6]);
+                        let net = Ipv4Inet::new(Ipv4Addr::from(buf), mask).unwrap();
+                        Self::Inet(IpInet::V4(net))
+                    }
+                    6 => {
+                        let mut buf = [0; 16];
+                        buf.copy_from_slice(&bytes[2..18]);
+                        let net = Ipv6Inet::new(Ipv6Addr::from(buf), mask).unwrap();
+                        Self::Inet(IpInet::V6(net))
+                    }
+                    _ => unreachable!(),
+                }
+            }
+            DataType::Mac => {
+                let bytes = from_raw_parts(ptr as *const u8, 6);
+                let address =
+                    MacAddress::new([bytes[0], bytes[1], bytes[2], bytes[3], bytes[4], bytes[5]]);
+                Self::Mac(address)
+            }
             DataType::Max => todo!(),
         }
     }

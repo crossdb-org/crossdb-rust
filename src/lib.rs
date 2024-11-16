@@ -13,6 +13,7 @@ mod crossdb_sys {
 mod column;
 mod de;
 mod error;
+mod params;
 mod row;
 mod statement;
 mod value;
@@ -27,10 +28,10 @@ pub use value::Value;
 use crossdb_sys::*;
 use lru::LruCache;
 use serde::de::{value::Error as DeError, DeserializeOwned};
-use std::ffi::{CStr, CString};
+use std::ffi::{c_void, CStr, CString};
 use std::fmt::Display;
 use std::num::NonZeroUsize;
-mod params;
+use std::slice::from_raw_parts;
 
 pub fn version() -> &'static str {
     unsafe { CStr::from_ptr(xdb_version()).to_str().unwrap() }
@@ -193,14 +194,10 @@ impl Query {
                 return None;
             }
             let mut values = Vec::with_capacity(self.column_count());
-            for col in 0..self.column_count() {
-                let value = Value::from_result(
-                    self.res.col_meta,
-                    row,
-                    col as u16,
-                    self.columns.datatype(col),
-                );
-                values.push(value);
+            let iter = from_raw_parts(row, self.column_count()).iter().enumerate();
+            for (i, ptr) in iter {
+                let ptr = *ptr as *const c_void;
+                values.push(Value::from_ptr(ptr, self.columns.datatype(i)));
             }
             Some(values)
         }
