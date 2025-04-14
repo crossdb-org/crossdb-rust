@@ -152,7 +152,7 @@ impl Query {
     }
 
     pub fn column_count(&self) -> usize {
-        unsafe { xdb_column_count(self.ptr) as usize }
+        self.columns.len()
     }
 
     pub fn row_count(&self) -> usize {
