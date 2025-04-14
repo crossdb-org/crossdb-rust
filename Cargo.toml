@@ -9,13 +9,13 @@ homepage = "hhttps://github.com/crossdb-org/crossdb-rust"
 repository = "https://github.com/crossdb-org/crossdb-rust.git"
 
 [dependencies]
-lru = "0.12"
+lru = "0.14"
 serde = "1.0"
-thiserror = "1.0"
-strum = { version = "0.26", features = ["derive"] }
-cidr = "0.3.0"
-mac_address = "1.1.7"
+thiserror = "2.0"
+strum = { version = "0.27", features = ["derive"] }
+cidr = "0.3"
+mac_address = "1.1"
 
 [build-dependencies]
-bindgen = "0.70"
-cc = "1.1"
+bindgen = "0.71"
+cc = "1.2"

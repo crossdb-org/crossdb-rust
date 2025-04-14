@@ -20,6 +20,7 @@ pub enum Value<'a> {
     Bool(bool),
     Inet(IpInet),
     Mac(MacAddress),
+    // TODO: Array
 }
 
 impl Display for Value<'_> {
@@ -42,7 +43,7 @@ impl Display for Value<'_> {
     }
 }
 
-impl<'a> Value<'a> {
+impl Value<'_> {
     pub(crate) unsafe fn from_ptr(ptr: *const c_void, t: DataType) -> Self {
         if ptr.is_null() {
             return Self::Null;
@@ -96,6 +97,7 @@ impl<'a> Value<'a> {
                     MacAddress::new([bytes[0], bytes[1], bytes[2], bytes[3], bytes[4], bytes[5]]);
                 Self::Mac(address)
             }
+            DataType::Array => todo!(),
             DataType::Max => todo!(),
         }
     }

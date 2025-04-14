@@ -45,13 +45,15 @@ pub enum DataType {
     Inet = xdb_type_t_XDB_TYPE_INET,
     #[strum(serialize = "MAC")]
     Mac = xdb_type_t_XDB_TYPE_MAC,
+    #[strum(serialize = "ARRAY")]
+    Array = xdb_type_t_XDB_TYPE_ARRAY,
     #[strum(serialize = "MAX")]
     Max = xdb_type_t_XDB_TYPE_MAX,
 }
 
 impl DataType {
-    unsafe fn from_meta(meta: u64, col: u16) -> Self {
-        let t = xdb_column_type(meta, col);
+    unsafe fn from_meta(ptr: *mut xdb_res_t, col: u16) -> Self {
+        let t = xdb_column_type(ptr, col);
         match Self::from_repr(t) {
             Some(t) => t,
             None => unreachable!(),
@@ -66,15 +68,15 @@ pub struct Columns {
 
 impl Columns {
     pub(crate) unsafe fn from_res(ptr: *mut xdb_res_t) -> Self {
-        let res = *ptr;
-        let mut columns = Vec::with_capacity(res.col_count as usize);
-        for i in 0..res.col_count {
+        let count = xdb_column_count(ptr);
+        let mut columns = Vec::with_capacity(count as usize);
+        for i in 0..(count as u16) {
             unsafe {
-                let name = CStr::from_ptr(xdb_column_name(res.col_meta, i))
+                let name = CStr::from_ptr(xdb_column_name(ptr, i))
                     .to_str()
                     .unwrap()
                     .to_string();
-                let datatype = DataType::from_meta(res.col_meta, i);
+                let datatype = DataType::from_meta(ptr, i);
                 columns.push(Column::new(name, datatype));
             }
         }
@@ -83,6 +85,7 @@ impl Columns {
         }
     }
 
+    #[allow(clippy::len_without_is_empty)]
     pub fn len(&self) -> usize {
         self.inner.len()
     }

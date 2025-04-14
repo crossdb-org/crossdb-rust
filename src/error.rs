@@ -9,7 +9,7 @@ pub enum Error {
     #[error("UTF8 error: {0}")]
     Utf8(#[from] std::str::Utf8Error),
     #[error("Query error: {0}, {1}")]
-    Query(u16, String),
+    Query(u32, String),
     #[error("Clear bindings error")]
     ClearBindings,
     #[error("Bind params error")]

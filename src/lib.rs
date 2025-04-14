@@ -123,7 +123,6 @@ impl Connection {
 
 #[derive(Debug)]
 pub struct Query {
-    res: xdb_res_t,
     ptr: *mut xdb_res_t,
     columns: Columns,
 }
@@ -141,28 +140,27 @@ unsafe impl Sync for Query {}
 
 impl Query {
     pub(crate) unsafe fn from_res(ptr: *mut xdb_res_t) -> Result<Self> {
-        let res = *ptr;
-        if res.errcode != xdb_errno_e_XDB_OK as u16 {
+        let code = xdb_errcode(ptr);
+        if code != xdb_errno_e_XDB_OK {
             let msg = CStr::from_ptr(xdb_errmsg(ptr)).to_str()?.to_string();
-            return Err(Error::Query(res.errcode, msg));
+            return Err(Error::Query(code, msg));
         }
         Ok(Self {
-            res,
             ptr,
             columns: Columns::from_res(ptr),
         })
     }
 
     pub fn column_count(&self) -> usize {
-        self.res.col_count as usize
+        unsafe { xdb_column_count(self.ptr) as usize }
     }
 
     pub fn row_count(&self) -> usize {
-        self.res.row_count as usize
+        unsafe { xdb_row_count(self.ptr) as usize }
     }
 
     pub fn affected_rows(&self) -> u64 {
-        self.res.affected_rows
+        unsafe { xdb_affected_rows(self.ptr) as u64 }
     }
 
     pub fn columns(&self) -> &Columns {
@@ -179,7 +177,7 @@ impl Query {
         self.fetch_row().map(|row| row.deserialize())
     }
 
-    pub fn fetch_rows_as<'a, T: DeserializeOwned>(&mut self) -> Result<Vec<T>, DeError> {
+    pub fn fetch_rows_as<T: DeserializeOwned>(&mut self) -> Result<Vec<T>, DeError> {
         let mut rows = Vec::with_capacity(self.row_count());
         while let Some(row) = self.fetch_row() {
             rows.push(row.deserialize()?);
@@ -189,14 +187,14 @@ impl Query {
 
     fn inner_fetch_row_values(&mut self) -> Option<Vec<Value<'_>>> {
         unsafe {
-            let row = xdb_fetch_row(self.ptr);
+            let row: *mut c_void = xdb_fetch_row(self.ptr);
             if row.is_null() {
                 return None;
             }
-            let mut values = Vec::with_capacity(self.column_count());
-            let iter = from_raw_parts(row, self.column_count()).iter().enumerate();
+            let count = self.columns.len();
+            let mut values = Vec::with_capacity(count);
+            let iter = from_raw_parts(row, count).iter().enumerate();
             for (i, ptr) in iter {
-                let ptr = *ptr as *const c_void;
                 values.push(Value::from_ptr(ptr, self.columns.datatype(i)));
             }
             Some(values)
