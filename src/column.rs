@@ -52,7 +52,7 @@ pub enum DataType {
 }
 
 impl DataType {
-    unsafe fn from_meta(ptr: *mut xdb_res_t, col: u16) -> Self {
+    unsafe fn from_res(ptr: *mut xdb_res_t, col: u16) -> Self {
         let t = xdb_column_type(ptr, col);
         match Self::from_repr(t) {
             Some(t) => t,
@@ -76,7 +76,7 @@ impl Columns {
                     .to_str()
                     .unwrap()
                     .to_string();
-                let datatype = DataType::from_meta(ptr, i);
+                let datatype = DataType::from_res(ptr, i);
                 columns.push(Column::new(name, datatype));
             }
         }

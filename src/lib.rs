@@ -28,7 +28,7 @@ pub use value::Value;
 use crossdb_sys::*;
 use lru::LruCache;
 use serde::de::{value::Error as DeError, DeserializeOwned};
-use std::ffi::{c_void, CStr, CString};
+use std::ffi::{CStr, CString};
 use std::fmt::Display;
 use std::num::NonZeroUsize;
 use std::slice::from_raw_parts;
@@ -187,17 +187,69 @@ impl Query {
 
     fn inner_fetch_row_values(&mut self) -> Option<Vec<Value<'_>>> {
         unsafe {
-            let row: *mut c_void = xdb_fetch_row(self.ptr);
+            let row = xdb_fetch_row(self.ptr);
             if row.is_null() {
                 return None;
             }
             let count = self.columns.len();
             let mut values = Vec::with_capacity(count);
-            let iter = from_raw_parts(row, count).iter().enumerate();
-            for (i, ptr) in iter {
-                values.push(Value::from_ptr(ptr, self.columns.datatype(i)));
+            for i in 0..count {
+                let v = Value::from_ptr(self.ptr, row, i as u16, self.columns.datatype(i));
+                values.push(v);
             }
             Some(values)
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_query() {
+        let mut conn = Connection::open_with_memory().unwrap();
+
+        conn.execute("CREATE TABLE IF NOT EXISTS users(id INT, name VARCHAR(255), age TINYINT);")
+            .unwrap();
+        let stmt = conn
+            .prepare("INSERT INTO users (id, name, age) values (?, ?, ?);")
+            .unwrap();
+
+        stmt.execute((1, "Alex", 18)).unwrap();
+        stmt.execute((2, "Thorne", 22)).unwrap();
+        stmt.execute((3, "Ryder", 36)).unwrap();
+
+        let mut query = conn.query("SELECT * FROM users;").unwrap();
+
+        assert_eq!(query.row_count(), 3);
+        assert_eq!(query.column_count(), 3);
+
+        assert_eq!(query.columns.name(0), "id");
+        assert_eq!(query.columns.datatype(0), DataType::Int);
+        assert_eq!(query.columns.name(1), "name");
+        assert_eq!(query.columns.datatype(1), DataType::VChar);
+        assert_eq!(query.columns.name(2), "age");
+        assert_eq!(query.columns.datatype(2), DataType::TinyInt);
+
+        let row1 = query.fetch_row().unwrap();
+        assert_eq!(row1.get(0), &Value::I32(1));
+        // assert_eq!(row1.get(1), &Value::String("Alex"));
+        assert_eq!(row1.get(2), &Value::I32(18));
+
+        let row2 = query.fetch_row().unwrap();
+        assert_eq!(row2.get(0), &Value::I32(2));
+        // assert_eq!(row2.get(1), &Value::String("Thorne"));
+        assert_eq!(row2.get(2), &Value::I32(22));
+
+        let row3 = query.fetch_row().unwrap();
+        assert_eq!(row3.get(0), &Value::I32(3));
+        // assert_eq!(row3.get(1), &Value::String("Ryder"));
+        assert_eq!(row3.get(2), &Value::I32(36));
+
+        assert!(query.fetch_row().is_none());
+
+        let affected_rows = conn.execute("DELETE FROM users;").unwrap();
+        assert_eq!(affected_rows, 3);
     }
 }

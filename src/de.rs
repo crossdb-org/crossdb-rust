@@ -83,8 +83,6 @@ impl<'de> Deserializer<'de> for ValueDeserializer<'de> {
     {
         match *self.0 {
             Value::Null => visitor.visit_none(),
-            Value::I8(v) => visitor.visit_i8(v),
-            Value::I16(v) => visitor.visit_i16(v),
             Value::I32(v) => visitor.visit_i32(v),
             Value::I64(v) => visitor.visit_i64(v),
             Value::F32(v) => visitor.visit_f32(v),
@@ -141,13 +139,13 @@ mod tests {
         de(&Value::Null, None::<i8>);
         de(&Value::Null, None::<String>);
 
-        de(&Value::I8(1), 1i8);
-        de(&Value::I8(1), Some(1i8));
-        de(&Value::I8(1), Some(1_u128));
+        de(&Value::I32(1), 1_i32);
+        de(&Value::I32(1), Some(1_i32));
+        de(&Value::I32(1), Some(1_u128));
 
-        de(&Value::I16(1), 1i16);
-        de(&Value::I16(1), Some(1i16));
-        de(&Value::I16(1), Some(1_u128));
+        de(&Value::I64(1), 1_i16);
+        de(&Value::I64(1), Some(1_i16));
+        de(&Value::I64(1), Some(1_u128));
 
         de(&Value::String("Hello"), String::from("Hello"));
         de(&Value::String("Hello"), Some(String::from("Hello")));

@@ -1,15 +1,11 @@
 use crate::*;
 use cidr::{IpInet, Ipv4Inet, Ipv6Inet};
 use mac_address::MacAddress;
-use std::ffi::c_char;
 use std::net::{Ipv4Addr, Ipv6Addr};
-use std::ptr::read;
 
 #[derive(Debug, Clone, PartialEq)]
 pub enum Value<'a> {
     Null,
-    I8(i8),
-    I16(i16),
     I32(i32),
     I64(i64),
     F32(f32),
@@ -27,8 +23,6 @@ impl Display for Value<'_> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
             Value::Null => write!(f, "NULL"),
-            Value::I8(v) => write!(f, "{}", v),
-            Value::I16(v) => write!(f, "{}", v),
             Value::I32(v) => write!(f, "{}", v),
             Value::I64(v) => write!(f, "{}", v),
             Value::F32(v) => write!(f, "{}", v),
@@ -44,57 +38,62 @@ impl Display for Value<'_> {
 }
 
 impl Value<'_> {
-    pub(crate) unsafe fn from_ptr(ptr: *const c_void, t: DataType) -> Self {
-        if ptr.is_null() {
+    pub(crate) unsafe fn from_ptr(
+        res: *mut xdb_res_t,
+        row: *mut xdb_row_t,
+        i: u16,
+        t: DataType,
+    ) -> Self {
+        if xdb_column_null(res, row, i) {
             return Self::Null;
         }
         match t {
             DataType::Null => Self::Null,
-            DataType::TinyInt => Self::I8(read(ptr as *const i8)),
+            DataType::TinyInt => Self::I32(xdb_column_int(res, row, i)),
+            DataType::SmallInt => Self::I32(xdb_column_int(res, row, i)),
+            DataType::Int => Self::I32(xdb_column_int(res, row, i)),
+            DataType::BigInt => Self::I64(xdb_column_int64(res, row, i)),
             DataType::UTinyInt => todo!(),
-            DataType::SmallInt => Self::I16(read(ptr as *const i16)),
             DataType::USmallInt => todo!(),
-            DataType::Int => Self::I32(read(ptr as *const i32)),
             DataType::UInt => todo!(),
-            DataType::BigInt => Self::I64(read(ptr as *const i64)),
             DataType::UBigInt => todo!(),
-            DataType::Float => Self::F32(read(ptr as *const f32)),
-            DataType::Double => Self::F64(read(ptr as *const f64)),
-            DataType::Timestamp => Self::Timestamp(read(ptr as *const i64)),
+            DataType::Float => Self::F32(xdb_column_float(res, row, i)),
+            DataType::Double => Self::F64(xdb_column_double(res, row, i)),
+            DataType::Timestamp => Self::Timestamp(xdb_column_int64(res, row, i)),
             DataType::Char | DataType::VChar => {
-                let str = CStr::from_ptr(ptr as *const c_char).to_str().unwrap();
+                let ptr = xdb_column_str(res, row, i);
+                let str = CStr::from_ptr(ptr).to_str().unwrap();
                 Self::String(str)
             }
             DataType::Binary | DataType::VBinary => {
-                let len = read((ptr as *const u8).offset(-2) as *const u16);
+                let mut len = 0_i32;
+                let ptr = xdb_column_blob(res, row, i, &mut len);
+                if len <= 0 {
+                    return Self::Null;
+                }
                 let data = from_raw_parts(ptr as *const u8, len as usize);
                 Self::Binary(data)
             }
-            DataType::Bool => Self::Bool(*(ptr as *const i8) == 1),
+            DataType::Bool => Self::Bool(xdb_column_bool(res, row, i)),
             DataType::Inet => {
-                let bytes = from_raw_parts(ptr as *const u8, 18);
-                let mask = bytes[0];
-                let family = bytes[1];
-                match family {
+                let inet = *xdb_column_inet(res, row, i);
+                match inet.family {
                     4 => {
                         let mut buf = [0; 4];
-                        buf.copy_from_slice(&bytes[2..6]);
-                        let net = Ipv4Inet::new(Ipv4Addr::from(buf), mask).unwrap();
+                        buf.copy_from_slice(&inet.addr[0..4]);
+                        let net = Ipv4Inet::new(Ipv4Addr::from(buf), inet.mask).unwrap();
                         Self::Inet(IpInet::V4(net))
                     }
                     6 => {
-                        let mut buf = [0; 16];
-                        buf.copy_from_slice(&bytes[2..18]);
-                        let net = Ipv6Inet::new(Ipv6Addr::from(buf), mask).unwrap();
+                        let net = Ipv6Inet::new(Ipv6Addr::from(inet.addr), inet.mask).unwrap();
                         Self::Inet(IpInet::V6(net))
                     }
                     _ => unreachable!(),
                 }
             }
             DataType::Mac => {
-                let bytes = from_raw_parts(ptr as *const u8, 6);
-                let address =
-                    MacAddress::new([bytes[0], bytes[1], bytes[2], bytes[3], bytes[4], bytes[5]]);
+                let mac = *xdb_column_mac(res, row, i);
+                let address = MacAddress::new(mac.addr);
                 Self::Mac(address)
             }
             DataType::Array => todo!(),

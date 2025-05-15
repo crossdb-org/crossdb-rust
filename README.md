@@ -16,7 +16,7 @@ struct User {
 fn main() -> crossdb::Result<()> {
     let mut conn = crossdb::Connection::open_with_memory()?;
 
-    conn.execute("CREATE TABLE IF NOT EXISTS users(id INT, name CHAR(255), age TINYINT);")?;
+    conn.execute("CREATE TABLE IF NOT EXISTS users(id INT, name VARCHAR, age TINYINT);")?;
     let stmt = conn.prepare("INSERT INTO users (id, name, age) values (?, ?, ?);")?;
 
     stmt.execute((1, "Alex", 18))?;

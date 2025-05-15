@@ -1,10 +1,16 @@
 use crate::{de::RowDeserializer, Columns, Result, Value};
 use serde::de::{value::Error as DeError, DeserializeOwned};
+use std::fmt::Debug;
 
-#[derive(Debug)]
 pub struct Row<'a> {
     pub(crate) columns: Columns,
     pub(crate) values: Vec<Value<'a>>,
+}
+
+impl Debug for Row<'_> {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_tuple("Row").field(&self.values).finish()
+    }
 }
 
 impl Row<'_> {
