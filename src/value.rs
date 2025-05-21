@@ -8,6 +8,8 @@ pub enum Value<'a> {
     Null,
     I32(i32),
     I64(i64),
+    U32(u32),
+    U64(u64),
     F32(f32),
     F64(f64),
     Timestamp(i64),
@@ -25,6 +27,8 @@ impl Display for Value<'_> {
             Value::Null => write!(f, "NULL"),
             Value::I32(v) => write!(f, "{}", v),
             Value::I64(v) => write!(f, "{}", v),
+            Value::U32(v) => write!(f, "{}", v),
+            Value::U64(v) => write!(f, "{}", v),
             Value::F32(v) => write!(f, "{}", v),
             Value::F64(v) => write!(f, "{}", v),
             Value::Timestamp(v) => write!(f, "{}", v),
@@ -49,14 +53,14 @@ impl Value<'_> {
         }
         match t {
             DataType::Null => Self::Null,
-            DataType::TinyInt => Self::I32(xdb_column_int(res, row, i)),
-            DataType::SmallInt => Self::I32(xdb_column_int(res, row, i)),
-            DataType::Int => Self::I32(xdb_column_int(res, row, i)),
+            DataType::TinyInt | DataType::SmallInt | DataType::Int => {
+                Self::I32(xdb_column_int(res, row, i))
+            }
             DataType::BigInt => Self::I64(xdb_column_int64(res, row, i)),
-            DataType::UTinyInt => todo!(),
-            DataType::USmallInt => todo!(),
-            DataType::UInt => todo!(),
-            DataType::UBigInt => todo!(),
+            DataType::UTinyInt | DataType::USmallInt | DataType::UInt => {
+                Self::U32(xdb_column_uint(res, row, i))
+            }
+            DataType::UBigInt => Self::U64(xdb_column_uint64(res, row, i)),
             DataType::Float => Self::F32(xdb_column_float(res, row, i)),
             DataType::Double => Self::F64(xdb_column_double(res, row, i)),
             DataType::Timestamp => Self::Timestamp(xdb_column_int64(res, row, i)),
@@ -96,6 +100,7 @@ impl Value<'_> {
                 let address = MacAddress::new(mac.addr);
                 Self::Mac(address)
             }
+            DataType::Json => todo!(),
             DataType::Array => todo!(),
             DataType::Max => todo!(),
         }

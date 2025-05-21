@@ -45,6 +45,8 @@ pub enum DataType {
     Inet = xdb_type_t_XDB_TYPE_INET,
     #[strum(serialize = "MAC")]
     Mac = xdb_type_t_XDB_TYPE_MAC,
+    #[strum(serialize = "JSON")]
+    Json = xdb_type_t_XDB_TYPE_JSON,
     #[strum(serialize = "ARRAY")]
     Array = xdb_type_t_XDB_TYPE_ARRAY,
     #[strum(serialize = "MAX")]

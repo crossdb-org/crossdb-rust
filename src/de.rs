@@ -85,6 +85,8 @@ impl<'de> Deserializer<'de> for ValueDeserializer<'de> {
             Value::Null => visitor.visit_none(),
             Value::I32(v) => visitor.visit_i32(v),
             Value::I64(v) => visitor.visit_i64(v),
+            Value::U32(v) => visitor.visit_u32(v),
+            Value::U64(v) => visitor.visit_u64(v),
             Value::F32(v) => visitor.visit_f32(v),
             Value::F64(v) => visitor.visit_f64(v),
             // TODO
