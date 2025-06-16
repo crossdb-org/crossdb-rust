@@ -5,7 +5,7 @@ pub enum Value {
     Int64(i64),
     Float(f32),
     Double(f64),
-    String(String),
+    String(CString),
 }
 
 trait IntoValue {
@@ -31,11 +31,22 @@ impl_value!(u64, Int64);
 impl_value!(i64, Int64);
 impl_value!(f32, Float);
 impl_value!(f64, Double);
-impl_value!(String, String);
+
+impl IntoValue for String {
+    fn into_value(self) -> Result<Value> {
+        Ok(Value::String(CString::new(self)?))
+    }
+}
 
 impl IntoValue for &str {
     fn into_value(self) -> Result<Value> {
-        Ok(Value::String(self.into()))
+        Ok(Value::String(CString::new(self)?))
+    }
+}
+
+impl IntoValue for CString {
+    fn into_value(self) -> Result<Value> {
+        Ok(Value::String(self))
     }
 }
 
@@ -48,25 +59,6 @@ impl IntoValue for Value {
 pub enum Params {
     Empty,
     Positional(Vec<Value>),
-}
-
-impl Params {
-    pub(crate) unsafe fn bind(ptr: *mut xdb_stmt_t, params: Vec<Value>) -> Result<()> {
-        for (i, p) in params.into_iter().enumerate() {
-            let i = i as u16 + 1;
-            let ret = match p {
-                ParamValue::Int(v) => xdb_bind_int(ptr, i, v),
-                ParamValue::Int64(v) => xdb_bind_int64(ptr, i, v),
-                ParamValue::Float(v) => xdb_bind_float(ptr, i, v),
-                ParamValue::Double(v) => xdb_bind_double(ptr, i, v),
-                ParamValue::String(v) => xdb_bind_str(ptr, i, CString::new(v)?.as_ptr()),
-            };
-            if ret != 0 {
-                return Err(Error::BindParams);
-            }
-        }
-        Ok(())
-    }
 }
 
 pub trait IntoParams {

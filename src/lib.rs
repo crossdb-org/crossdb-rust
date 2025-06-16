@@ -234,17 +234,17 @@ mod tests {
 
         let row1 = query.fetch_row().unwrap();
         assert_eq!(row1.get(0), &Value::I32(1));
-        // assert_eq!(row1.get(1), &Value::String("Alex"));
+        assert_eq!(row1.get(1), &Value::String("Alex"));
         assert_eq!(row1.get(2), &Value::I32(18));
 
         let row2 = query.fetch_row().unwrap();
         assert_eq!(row2.get(0), &Value::I32(2));
-        // assert_eq!(row2.get(1), &Value::String("Thorne"));
+        assert_eq!(row2.get(1), &Value::String("Thorne"));
         assert_eq!(row2.get(2), &Value::I32(22));
 
         let row3 = query.fetch_row().unwrap();
         assert_eq!(row3.get(0), &Value::I32(3));
-        // assert_eq!(row3.get(1), &Value::String("Ryder"));
+        assert_eq!(row3.get(1), &Value::String("Ryder"));
         assert_eq!(row3.get(2), &Value::I32(36));
 
         assert!(query.fetch_row().is_none());
